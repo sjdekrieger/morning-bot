@@ -7,7 +7,7 @@ import anthropic
 
 from goals import SYSTEM_PROMPT
 
-MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+MODEL = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
 _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 _history: deque = deque(maxlen=40)  # 20 turns = 40 messages (user + assistant)
 
