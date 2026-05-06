@@ -5,14 +5,44 @@ from datetime import datetime
 
 import anthropic
 
-from goals import SYSTEM_PROMPT
+from goals import SYSTEM_PROMPT, GOALS_2026
 
 MODEL = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
 _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 _history: deque = deque(maxlen=40)  # 20 turns = 40 messages (user + assistant)
 
 
+def _build_context_prompt() -> str:
+    import calendar_service
+    import storage
+
+    today_events = calendar_service.get_today_events()
+    tasks = storage.get_tasks()
+    goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in GOALS_2026)
+
+    events_str = calendar_service.format_events_for_message(today_events) if today_events else "Geen events vandaag."
+    tasks_str = "\n".join(f"- {t}" for t in tasks) if tasks else "Nog geen taken ingepland."
+
+    return f"""[CONTEXT — nu beschikbaar voor dit gesprek]
+Datum: {datetime.now().strftime('%A %d %B %Y, %H:%M')}
+
+Agenda vandaag:
+{events_str}
+
+Taken voor vandaag:
+{tasks_str}
+
+Stef's doelen 2026:
+{goals_str}
+[EINDE CONTEXT]"""
+
+
 def chat(user_message: str) -> str:
+    if not _history:
+        context = _build_context_prompt()
+        _history.append({"role": "user", "content": context})
+        _history.append({"role": "assistant", "content": "Begrepen, ik heb je agenda, taken en doelen in beeld."})
+
     _history.append({"role": "user", "content": user_message})
     messages = list(_history)
 
