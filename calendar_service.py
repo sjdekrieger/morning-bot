@@ -173,7 +173,7 @@ def add_event(title: str, start_iso: str, end_iso: str, description: str = "") -
         }
         if description:
             event["description"] = description
-        service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
+        service.events().insert(calendarId="sjdekrieger@gmail.com", body=event).execute()
         return True
     except Exception as e:
         import logging
@@ -190,7 +190,7 @@ def delete_event_by_title(title: str) -> bool:
         result = (
             service.events()
             .list(
-                calendarId=CALENDAR_ID,
+                calendarId="sjdekrieger@gmail.com",
                 timeMin=now.isoformat(),
                 timeMax=future.isoformat(),
                 singleEvents=True,
@@ -203,7 +203,7 @@ def delete_event_by_title(title: str) -> bool:
         if not items:
             return False
 
-        service.events().delete(calendarId=CALENDAR_ID, eventId=items[0]["id"]).execute()
+        service.events().delete(calendarId="sjdekrieger@gmail.com", eventId=items[0]["id"]).execute()
         return True
     except Exception:
         return False
