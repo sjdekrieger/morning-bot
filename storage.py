@@ -1,10 +1,12 @@
 import json
 import os
 from pathlib import Path
+from datetime import datetime
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 TASKS_FILE = DATA_DIR / "tasks.json"
 STATE_FILE = DATA_DIR / "state.json"
+MEMORY_FILE = DATA_DIR / "memory.json"
 
 
 def init() -> None:
@@ -13,6 +15,8 @@ def init() -> None:
         TASKS_FILE.write_text(json.dumps([]))
     if not STATE_FILE.exists():
         STATE_FILE.write_text(json.dumps({"awaiting_tasks": False, "goal_index": 0}))
+    if not MEMORY_FILE.exists():
+        MEMORY_FILE.write_text(json.dumps([]))
 
 
 def _read_state() -> dict:
@@ -57,3 +61,28 @@ def increment_goal_index(total: int) -> int:
     state["goal_index"] = new_index
     _write_state(state)
     return new_index
+
+
+def add_memory(note: str) -> None:
+    memories = get_memories()
+    memories.append({
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "note": note,
+    })
+    # Bewaar maximaal 200 herinneringen
+    MEMORY_FILE.write_text(json.dumps(memories[-200:], ensure_ascii=False, indent=2))
+
+
+def get_memories() -> list[dict]:
+    try:
+        return json.loads(MEMORY_FILE.read_text())
+    except Exception:
+        return []
+
+
+def get_memories_as_text() -> str:
+    memories = get_memories()
+    if not memories:
+        return ""
+    lines = [f"[{m['date']}] {m['note']}" for m in memories[-50:]]
+    return "\n".join(lines)

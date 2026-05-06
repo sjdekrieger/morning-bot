@@ -19,11 +19,12 @@ def _build_context_prompt() -> str:
     today_events = calendar_service.get_today_events()
     tasks = storage.get_tasks()
     goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in GOALS_2026)
+    memories_str = storage.get_memories_as_text()
 
     events_str = calendar_service.format_events_for_message(today_events) if today_events else "Geen events vandaag."
     tasks_str = "\n".join(f"- {t}" for t in tasks) if tasks else "Nog geen taken ingepland."
 
-    return f"""[CONTEXT — nu beschikbaar voor dit gesprek]
+    context = f"""[CONTEXT — nu beschikbaar voor dit gesprek]
 Datum: {datetime.now().strftime('%A %d %B %Y, %H:%M')}
 
 Agenda vandaag:
@@ -33,15 +34,51 @@ Taken voor vandaag:
 {tasks_str}
 
 Stef's doelen 2026:
-{goals_str}
-[EINDE CONTEXT]"""
+{goals_str}"""
+
+    if memories_str:
+        context += f"\n\nWat ik over Stef onthouden heb:\n{memories_str}"
+
+    context += "\n[EINDE CONTEXT]"
+    return context
+
+
+def _extract_memory(user_message: str, reply: str) -> str | None:
+    prompt = f"""Stef zei: "{user_message}"
+Jij antwoordde: "{reply}"
+
+Is er iets in dit gesprek wat de moeite waard is om te onthouden voor toekomstige gesprekken?
+Denk aan: voortgang op doelen, persoonlijke info, gewoontes, situaties, plannen.
+
+Als ja: schrijf één korte zin (max 15 woorden) die de kern vastlegt. Begin met "Stef".
+Als nee: antwoord alleen met "NEE".
+
+Voorbeelden van goede herinneringen:
+- "Stef heeft 2 boeken gelezen dit jaar."
+- "Stef loopt 3x per week, begonnen in april."
+- "Stef werkt aan een 3D render voor Tenciq."
+- "Stef vindt het moeilijk om 's ochtends vroeg te beginnen."
+
+Antwoord:"""
+
+    response = _client.messages.create(
+        model=MODEL,
+        max_tokens=40,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    result = response.content[0].text.strip()
+    if result.upper() == "NEE" or not result.startswith("Stef"):
+        return None
+    return result
 
 
 def chat(user_message: str) -> str:
+    import storage
+
     if not _history:
         context = _build_context_prompt()
         _history.append({"role": "user", "content": context})
-        _history.append({"role": "assistant", "content": "Begrepen, ik heb je agenda, taken en doelen in beeld."})
+        _history.append({"role": "assistant", "content": "Begrepen, ik heb je agenda, taken, doelen en eerdere gesprekken in beeld."})
 
     _history.append({"role": "user", "content": user_message})
     messages = list(_history)
@@ -54,6 +91,12 @@ def chat(user_message: str) -> str:
     )
     reply = response.content[0].text
     _history.append({"role": "assistant", "content": reply})
+
+    # Sla relevante info op in geheugen
+    memory = _extract_memory(user_message, reply)
+    if memory:
+        storage.add_memory(memory)
+
     return reply
 
 
