@@ -293,8 +293,9 @@ Geef ALLEEN de zin, niks anders."""
     return response.content[0].text.strip()
 
 
-def get_week_analysis(goals: list[dict], week_memories: str) -> str:
+def get_week_analysis(goals: list[dict], week_memories: str, past_observations: str = "") -> str:
     goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in goals)
+    past_block = f"\nObservaties uit eerdere weken:\n{past_observations}\n" if past_observations else ""
 
     prompt = f"""Je bent de interne analyselaag van Stefs persoonlijke agent.
 Je schrijft nooit direct aan Stef — je analyseert alleen.
@@ -304,7 +305,7 @@ Stefs doelen voor 2026:
 
 Wat er deze week over hem is onthouden:
 {week_memories or "Geen specifieke info uit deze week."}
-
+{past_block}
 Analyseer in max 100 woorden:
 1. Wat valt op in het patroon van deze week?
 2. Wat heeft Stef nu nodig: erkenning, scherpere vraag, tijdsdruk of rust?
