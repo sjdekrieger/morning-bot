@@ -128,8 +128,11 @@ async def send_weekly_goal_check(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # Interne analyse — nooit zichtbaar voor Stef
     analysis = claude_service.get_week_analysis(GOALS_2026, week_memories)
+    storage.save_weekly_observation(week_type, analysis)
 
-    review = claude_service.get_weekly_goal_check(GOALS_2026, week_memories, week_type, analysis)
+    # Eerdere observaties meegeven zodat de bot patronen over meerdere weken ziet
+    past_observations = storage.get_recent_observations(n=4)
+    review = claude_service.get_weekly_goal_check(GOALS_2026, week_memories, week_type, analysis, past_observations)
 
     message = f"*🎯 Weekcheck*\n\n{review}"
     await context.bot.send_message(chat_id=CHAT_ID, text=message, parse_mode="Markdown")

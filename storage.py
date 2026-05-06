@@ -123,6 +123,27 @@ def get_week_memories() -> str:
     return "\n".join(f"[{m['date']}] {m['note']}" for m in recent)
 
 
+def save_weekly_observation(week_type: str, observation: str) -> None:
+    memories = get_memories()
+    memories.append({
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "type": "observation",
+        "week_type": week_type,
+        "note": observation,
+    })
+    MEMORY_FILE.write_text(json.dumps(memories[-200:], ensure_ascii=False, indent=2))
+
+
+def get_recent_observations(n: int = 4) -> str:
+    memories = get_memories()
+    observations = [m for m in memories if m.get("type") == "observation"]
+    recent = observations[-n:]
+    if not recent:
+        return ""
+    lines = [f"[{m['date']} week-{m['week_type']}] {m['note']}" for m in recent]
+    return "\n".join(lines)
+
+
 def add_memory(note: str) -> None:
     memories = get_memories()
     memories.append({

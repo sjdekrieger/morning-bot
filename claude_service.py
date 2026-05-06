@@ -321,7 +321,7 @@ Schrijf alleen observaties en een aanbeveling. Geen aanspreking, geen berichtje.
     return response.content[0].text.strip()
 
 
-def get_weekly_goal_check(goals: list[dict], week_memories: str, week_type: str, analysis: str = "") -> str:
+def get_weekly_goal_check(goals: list[dict], week_memories: str, week_type: str, analysis: str = "", past_observations: str = "") -> str:
     goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in goals)
 
     week_type_instructions = {
@@ -349,7 +349,8 @@ def get_weekly_goal_check(goals: list[dict], week_memories: str, week_type: str,
         "- Tijdsdruk werkt voor hem"
     )
 
-    analysis_block = f"\nInterne analyse (gebruik dit om het berichtje te scherpen — niet letterlijk citeren):\n{analysis}\n" if analysis else ""
+    analysis_block = f"\nInterne analyse deze week (niet letterlijk citeren):\n{analysis}\n" if analysis else ""
+    past_block = f"\nPatronen uit eerdere weken (gebruik voor continuïteit, niet voor herhaling):\n{past_observations}\n" if past_observations else ""
 
     prompt = f"""Je bent de persoonlijke assistent van Stef (19, CMD-student Amsterdam).
 
@@ -362,7 +363,7 @@ Zijn 9 doelen voor 2026:
 
 Wat ik deze week over hem heb onthouden:
 {week_memories or "Geen specifieke info uit deze week."}
-{analysis_block}
+{analysis_block}{past_block}
 Schrijf nu een weekcheck-berichtje. Regels:
 - Max 100 woorden
 - Kies 1-2 doelen om op te focussen — noem NIET alle doelen
