@@ -37,7 +37,7 @@ Stef's doelen 2026:
 {goals_str}"""
 
     if memories_str:
-        context += f"\n\nWat ik over Stef onthouden heb:\n{memories_str}"
+        context += f"\n\nWat ik over Stef onthouden heb (gebruik dit om je stijl en advies op aan te passen):\n{memories_str}"
 
     context += "\n[EINDE CONTEXT]"
     return context
@@ -48,16 +48,24 @@ def _extract_memory(user_message: str, reply: str) -> str | None:
 Jij antwoordde: "{reply}"
 
 Is er iets in dit gesprek wat de moeite waard is om te onthouden voor toekomstige gesprekken?
-Denk aan: voortgang op doelen, persoonlijke info, gewoontes, situaties, plannen.
+
+Denk aan:
+- Voortgang op doelen (boeken, sport, geld, school)
+- Persoonlijke info of situaties
+- Hoe Stef reageert op bepaalde dingen (wil hij korte antwoorden? houdt hij niet van X?)
+- Patronen in zijn gedrag of gewoontes
+- Dingen waar hij mee worstelt
+- Voorkeuren in communicatie
 
 Als ja: schrijf één korte zin (max 15 woorden) die de kern vastlegt. Begin met "Stef".
 Als nee: antwoord alleen met "NEE".
 
-Voorbeelden van goede herinneringen:
+Voorbeelden:
 - "Stef heeft 2 boeken gelezen dit jaar."
-- "Stef loopt 3x per week, begonnen in april."
-- "Stef werkt aan een 3D render voor Tenciq."
-- "Stef vindt het moeilijk om 's ochtends vroeg te beginnen."
+- "Stef reageert beter op korte, directe berichten zonder uitleg."
+- "Stef heeft moeite met consistent sporten, heeft een zetje nodig."
+- "Stef werkt liever 's avonds dan 's ochtends."
+- "Stef wordt gedemotiveerd als berichten te lang zijn."
 
 Antwoord:"""
 
