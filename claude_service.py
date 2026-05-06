@@ -15,11 +15,13 @@ _history: deque = deque(maxlen=40)  # 20 turns = 40 messages (user + assistant)
 def _build_context_prompt() -> str:
     import calendar_service
     import storage
+    import tasks_service
 
     today_events = calendar_service.get_today_events()
     tasks = storage.get_tasks()
     goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in GOALS_2026)
     memories_str = storage.get_memories_as_text()
+    google_tasks_str = tasks_service.get_tasks_as_text()
 
     events_str = calendar_service.format_events_for_message(today_events) if today_events else "Geen events vandaag."
     tasks_str = "\n".join(f"- {t}" for t in tasks) if tasks else "Nog geen taken ingepland."
@@ -30,8 +32,11 @@ Datum: {datetime.now().strftime('%A %d %B %Y, %H:%M')}
 Agenda vandaag:
 {events_str}
 
-Taken voor vandaag:
+Taken voor vandaag (avondlijst):
 {tasks_str}
+
+Google Tasks (openstaande to-do's):
+{google_tasks_str}
 
 Stef's doelen 2026:
 {goals_str}"""
@@ -124,12 +129,21 @@ Geef een JSON-antwoord (ALLEEN JSON, geen uitleg):
   {{"type": "calendar_delete", "title": "naam van het event"}}
 - Als hij een taak of to-do noemt zonder dat het een agenda-event is:
   {{"type": "task_add", "title": "naam van de taak"}}
+- Als hij zijn Google Tasks wil zien:
+  {{"type": "tasks_view"}}
+- Als hij een taak wil afvinken als gedaan:
+  {{"type": "task_complete", "title": "naam van de taak"}}
+- Als hij een taak wil verwijderen uit Google Tasks:
+  {{"type": "task_delete", "title": "naam van de taak"}}
 
 Voorbeelden:
 - "voeg gym toe morgen om 18:00" → calendar_add
 - "wat staat er vandaag in mijn agenda?" → calendar_view
 - "verwijder de meeting van donderdag" → calendar_delete
 - "ik moet nog mijn portfolio afmaken" → task_add
+- "wat zijn mijn taken?" of "toon mijn to-do lijst" → tasks_view
+- "ik heb mijn portfolio afgemaakt" of "vink portfolio af" → task_complete
+- "verwijder taak gym" → task_delete
 - "hoe pak ik mijn portfolio aan?" → chat"""
 
     response = _client.messages.create(

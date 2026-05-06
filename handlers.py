@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 import storage
 import claude_service
 import calendar_service
+import tasks_service
 from goals import GOALS_2026
 
 CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID", "0"))
@@ -132,6 +133,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         task_title = intent.get("title", message)
         storage.set_pending_task(task_title)
         await update.message.reply_text(f"Wanneer is de deadline voor *{task_title}*?", parse_mode="Markdown")
+    elif intent_type == "tasks_view":
+        text = "*📋 Google Tasks:*\n" + tasks_service.get_tasks_as_text()
+        await update.message.reply_text(text, parse_mode="Markdown")
+    elif intent_type == "task_complete":
+        title = intent.get("title", "")
+        success = tasks_service.complete_task_by_title(title)
+        if success:
+            await update.message.reply_text(f"✓ *{title}* afgevinkt.", parse_mode="Markdown")
+        else:
+            await update.message.reply_text(f"Geen taak gevonden met de naam '{title}'.")
+    elif intent_type == "task_delete":
+        title = intent.get("title", "")
+        success = tasks_service.delete_task_by_title(title)
+        if success:
+            await update.message.reply_text(f"✓ *{title}* verwijderd.", parse_mode="Markdown")
+        else:
+            await update.message.reply_text(f"Geen taak gevonden met de naam '{title}'.")
     else:
         loc = storage.get_location()
         if storage.is_location_fresh() and loc:
@@ -169,10 +187,12 @@ async def _handle_deadline_input(update: Update, context: ContextTypes.DEFAULT_T
         chat_id=CHAT_ID,
     )
 
+    tasks_service.add_task(task, deadline_iso)
+
     await update.message.reply_text(
-        f"✓ Reminder ingesteld voor *{task}*.\n"
+        f"✓ *{task}* toegevoegd aan Google Tasks.\n"
         f"Deadline: {deadline_str}\n"
-        f"Ik stuur je een reminder op 80% van de tijd.",
+        f"Reminder volgt op 80% van de tijd.",
         parse_mode="Markdown"
     )
 
