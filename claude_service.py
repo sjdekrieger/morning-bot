@@ -71,6 +71,10 @@ Voorbeelden:
 - "Stef heeft moeite met consistent sporten, heeft een zetje nodig."
 - "Stef werkt liever 's avonds dan 's ochtends."
 - "Stef wordt gedemotiveerd als berichten te lang zijn."
+- "Stef slaat regelmatig college over — dit is een bewuste keuze, niet becommentariëren."
+- "Stef wil geen opmerkingen over [X] — hij heeft dit meerdere keren aangegeven."
+
+Let op: als Stef iets meerdere keren heeft gezegd of een voorkeur/keuze heeft aangegeven, sla dat dan op als gedragsregel zodat de bot er niet meer op terugkomt.
 
 Antwoord:"""
 
