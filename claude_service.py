@@ -293,29 +293,57 @@ Geef ALLEEN de zin, niks anders."""
     return response.content[0].text.strip()
 
 
-def get_weekly_goal_check(goals: list[dict], memories_text: str) -> str:
+def get_weekly_goal_check(goals: list[dict], week_memories: str, week_type: str) -> str:
     goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in goals)
 
-    prompt = f"""Het is zondag. Stef sluit zijn week af.
+    week_type_instructions = {
+        "A": (
+            "Invalshoek deze week: WERK & VOORUITGANG\n"
+            "Focus op 1-2 doelen rond design, school of portfolio.\n"
+            "Centrale vraag: heeft hij iets gedaan dat telt — iets meetbaars?"
+        ),
+        "B": (
+            "Invalshoek deze week: CONSISTENTIE\n"
+            "Focus op 1-2 doelen rond sport, schermtijd, concentratie of routine.\n"
+            "Centrale vraag: heeft hij gedaan wat hij zichzelf beloofde?"
+        ),
+        "C": (
+            "Invalshoek deze week: TERUGKIJKEN\n"
+            "Focus op 1-2 doelen naar keuze — maar kijk achteruit, niet vooruit.\n"
+            "Centrale vraag: wat heeft hij dit jaar al bereikt richting dit doel?"
+        ),
+    }
 
-Zijn doelen voor 2026:
+    vuistregels = (
+        "Zijn vuistregels:\n"
+        "- Nooit werken zonder meetlat\n"
+        "- Motivatie zit in terugkijken, niet in het einddoel\n"
+        "- Tijdsdruk werkt voor hem"
+    )
+
+    prompt = f"""Je bent de persoonlijke assistent van Stef (19, CMD-student Amsterdam).
+
+{week_type_instructions.get(week_type, week_type_instructions["A"])}
+
+Zijn 9 doelen voor 2026:
 {goals_str}
 
-Wat ik de afgelopen week over hem heb onthouden:
-{memories_text or "Geen specifieke info uit deze week."}
+{vuistregels}
 
-Schrijf een persoonlijk weekoverzicht voor Stef. Structuur:
-1. Start met wat er deze week goed ging — wees specifiek als je het weet uit de herinneringen, anders algemeen maar eerlijk.
-2. Noem 2-3 doelen en geef per doel een eerlijke korte observatie (1 zin).
-3. Stel één concrete vraag voor de komende week: iets waar hij écht mee verder moet.
-4. Eindig met één motiverende zin die past bij zijn situatie — geen cliché.
+Wat ik deze week over hem heb onthouden:
+{week_memories or "Geen specifieke info uit deze week."}
 
-Stijl: direct, als een goede vriend die hem goed kent. Geen neppe enthousiasme.
-Max 200 woorden. In het Nederlands."""
+Schrijf nu een weekcheck-berichtje. Regels:
+- Max 100 woorden
+- Kies 1-2 doelen om op te focussen — noem NIET alle doelen
+- Stel maximaal 2 vragen
+- Sluit af met één van zijn vuistregels, passend bij deze week (niet letterlijk herhalen — verwerk het)
+- Toon: direct, warm, kort — geen opsommingen, geen neppe motivatie
+- In het Nederlands"""
 
     response = _client.messages.create(
         model=MODEL,
-        max_tokens=400,
+        max_tokens=250,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )

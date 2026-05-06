@@ -23,7 +23,7 @@ def _read_state() -> dict:
     try:
         return json.loads(STATE_FILE.read_text())
     except Exception:
-        return {"awaiting_tasks": False, "goal_index": 0}
+        return {"awaiting_tasks": False, "goal_index": 0, "week_rotation": 0}
 
 
 def _write_state(state: dict) -> None:
@@ -99,6 +99,28 @@ def is_location_fresh(max_minutes: int = 30) -> bool:
         return False
     ts = datetime.fromisoformat(loc["timestamp"])
     return (datetime.now() - ts).total_seconds() < max_minutes * 60
+
+
+def get_and_advance_week_rotation() -> str:
+    """Geeft de huidige weektype (A/B/C) en schuift door naar de volgende."""
+    state = _read_state()
+    index = state.get("week_rotation", 0)
+    rotation = ["A", "B", "C"]
+    current = rotation[index % 3]
+    state["week_rotation"] = (index + 1) % 3
+    _write_state(state)
+    return current
+
+
+def get_week_memories() -> str:
+    """Geeft geheugen uit de afgelopen 7 dagen als tekst."""
+    from datetime import timedelta
+    memories = get_memories()
+    cutoff = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    recent = [m for m in memories if m.get("date", "") >= cutoff]
+    if not recent:
+        return ""
+    return "\n".join(f"[{m['date']}] {m['note']}" for m in recent)
 
 
 def add_memory(note: str) -> None:

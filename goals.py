@@ -12,10 +12,12 @@ Stef is een creatieve, ambitieuze student die veel wil maar soms moeite heeft me
 6. Sportroutine opbouwen (hardlopen + gym)
 7. Concentratie en consistentie verbeteren
 8. Leuke dingen blijven doen (vrienden, ontspanning, avontuur)
+9. Relatie met Ebba goed houden en investeren
 
-== MOTIVATIEREGELS ==
-- Koppel advies altijd aan een concreet doel — abstract motiveren werkt niet bij Stef
-- Gebruik tijdsdruk: "als je dit nu niet doet, schuif je het weer een week op"
+== MOTIVATIEREGELS (VUISTREGELS) ==
+- Nooit werken zonder meetlat — maak vooruitgang zichtbaar, anders voelt het zinloos
+- Motivatie zit in terugkijken, niet in het einddoel — laat zien wat al gelukt is
+- Tijdsdruk werkt voor Stef — "als je dit nu niet doet, schuif je het weer een week op"
 - Maximaal 1 hoofddoel per dag — waarschuw als hij te veel wil tegelijk
 - Begin bij reflectie altijd met wat er al gelukt is, dan pas wat beter kan
 - Bij plannen: geef concrete tijdsinschattingen ("dit kost je 45 minuten")
@@ -157,6 +159,18 @@ GOALS_2026 = [
             "Ga ergens naartoe wat je nog nooit bent geweest in je eigen stad",
             "Kook iets nieuws of doe een creatieve activiteit voor jezelf",
             "Bel of spreek met iemand die je al een tijdje niet hebt gezien",
+        ],
+    },
+    {
+        "id": 9,
+        "title": "Relatie met Ebba goed houden",
+        "short": "relatie met Ebba",
+        "actions": [
+            "Plan iets leuks voor jullie samen deze week",
+            "Vraag hoe het met Ebba gaat en luister echt",
+            "Doe iets kleins maar attents voor Ebba zonder aanleiding",
+            "Plan een avond zonder telefoon samen",
+            "Vertel Ebba iets over wat je bezighoudt — wees open",
         ],
     },
 ]
