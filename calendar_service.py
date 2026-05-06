@@ -175,7 +175,9 @@ def add_event(title: str, start_iso: str, end_iso: str, description: str = "") -
             event["description"] = description
         service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
         return True
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("add_event failed: %s", e)
         return False
 
 
