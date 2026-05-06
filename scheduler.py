@@ -56,14 +56,11 @@ async def send_morning_message(context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         lines.append("Nog geen taken ingepland. Stuur me vanavond je 4 belangrijkste dingen voor morgen.")
 
-    # Dag-opmerking op basis van drukte
-    num_events = len([e for e in today_events if "dateTime" in e.get("start", {})])
-    if num_events >= 4:
-        lines.append("\n_Drukke dag vandaag. Houd je hoofd erbij en werk je lijst af._")
-    elif num_events == 0:
-        lines.append("\n_Vrije dag. Goed moment om aan iets te werken waar je normaal geen tijd voor hebt._")
-    else:
-        lines.append("\n_Rustige dag. Gebruik de ruimte goed._")
+    # Dag-opmerking op basis van drukte + doelen
+    timed_events = [e for e in today_events if "dateTime" in e.get("start", {})]
+    event_titles = [e.get("summary", "") for e in timed_events]
+    day_comment = claude_service.get_day_comment(len(timed_events), event_titles, GOALS_2026)
+    lines.append(f"\n_{day_comment}_")
 
     # Motiverende quote
     quote = quotes_service.get_quote()

@@ -94,6 +94,37 @@ Geef ALLEEN een JSON-antwoord:
         return None
 
 
+def get_day_comment(num_events: int, event_titles: list[str], goals: list[dict]) -> str:
+    goals_str = "\n".join(f"- {g['title']}" for g in goals)
+    events_str = ", ".join(event_titles) if event_titles else "geen events"
+    drukte = "druk" if num_events >= 4 else ("vrij" if num_events == 0 else "normaal")
+
+    prompt = f"""Stef's agenda vandaag heeft {num_events} events: {events_str}.
+Drukte: {drukte}.
+
+Zijn doelen voor 2026:
+{goals_str}
+
+Schrijf één korte zin (max 15 woorden) die:
+- past bij hoe druk zijn dag is
+- een specifiek doel noemt dat relevant is voor vandaag
+- direct en eerlijk is, geen neppe motivatie
+
+Voorbeelden:
+- "Drukke dag, maar 's avonds kun je nog 30 minuten aan je portfolio werken."
+- "Rustige dag — ideaal om eindelijk die 3D render af te maken."
+- "Weinig tijd vandaag, focus op school en laat de rest voor morgen."
+
+Geef ALLEEN de zin, geen uitleg."""
+
+    response = _client.messages.create(
+        model=MODEL,
+        max_tokens=80,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
 def get_goal_suggestion(free_minutes: int, goal: dict) -> str:
     hours = free_minutes // 60
     minutes = free_minutes % 60
