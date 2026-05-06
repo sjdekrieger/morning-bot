@@ -8,6 +8,8 @@ from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID", "primary")
+EXTRA_CALENDARS = [c.strip() for c in os.getenv("EXTRA_CALENDAR_IDS", "").split(",") if c.strip()]
+ALL_CALENDAR_IDS = [CALENDAR_ID] + EXTRA_CALENDARS
 
 DAYS_NL = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
 MONTHS_NL = [
@@ -66,19 +68,15 @@ def _format_event(event: dict) -> str:
         return f"• Hele dag — {title}"
 
 
-def get_today_events() -> list[dict]:
+def _fetch_events(calendar_id: str, time_min: str, time_max: str) -> list[dict]:
     try:
         service = _get_service()
-        now = datetime.now().astimezone()
-        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
-
         result = (
             service.events()
             .list(
-                calendarId=CALENDAR_ID,
-                timeMin=start_of_day.isoformat(),
-                timeMax=end_of_day.isoformat(),
+                calendarId=calendar_id,
+                timeMin=time_min,
+                timeMax=time_max,
                 singleEvents=True,
                 orderBy="startTime",
             )
@@ -87,28 +85,36 @@ def get_today_events() -> list[dict]:
         return result.get("items", [])
     except Exception:
         return []
+
+
+def _sort_events(events: list[dict]) -> list[dict]:
+    def sort_key(e):
+        start = e.get("start", {})
+        if "dateTime" in start:
+            return start["dateTime"]
+        return start.get("date", "")
+    return sorted(events, key=sort_key)
+
+
+def get_today_events() -> list[dict]:
+    now = datetime.now().astimezone()
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0).isoformat()
+
+    all_events = []
+    for cal_id in ALL_CALENDAR_IDS:
+        all_events.extend(_fetch_events(cal_id, start_of_day, end_of_day))
+    return _sort_events(all_events)
 
 
 def get_upcoming_events(days: int = 7) -> list[dict]:
-    try:
-        service = _get_service()
-        now = datetime.now().astimezone()
-        future = now + timedelta(days=days)
+    now = datetime.now().astimezone()
+    future = now + timedelta(days=days)
 
-        result = (
-            service.events()
-            .list(
-                calendarId=CALENDAR_ID,
-                timeMin=now.isoformat(),
-                timeMax=future.isoformat(),
-                singleEvents=True,
-                orderBy="startTime",
-            )
-            .execute()
-        )
-        return result.get("items", [])
-    except Exception:
-        return []
+    all_events = []
+    for cal_id in ALL_CALENDAR_IDS:
+        all_events.extend(_fetch_events(cal_id, now.isoformat(), future.isoformat()))
+    return _sort_events(all_events)
 
 
 def format_events_for_message(events: list[dict]) -> str:
