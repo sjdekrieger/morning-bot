@@ -125,7 +125,11 @@ async def send_evening_message(context: ContextTypes.DEFAULT_TYPE) -> None:
 async def send_weekly_goal_check(context: ContextTypes.DEFAULT_TYPE) -> None:
     week_memories = storage.get_week_memories()
     week_type = storage.get_and_advance_week_rotation()
-    review = claude_service.get_weekly_goal_check(GOALS_2026, week_memories, week_type)
+
+    # Interne analyse — nooit zichtbaar voor Stef
+    analysis = claude_service.get_week_analysis(GOALS_2026, week_memories)
+
+    review = claude_service.get_weekly_goal_check(GOALS_2026, week_memories, week_type, analysis)
 
     message = f"*🎯 Weekcheck*\n\n{review}"
     await context.bot.send_message(chat_id=CHAT_ID, text=message, parse_mode="Markdown")

@@ -293,7 +293,35 @@ Geef ALLEEN de zin, niks anders."""
     return response.content[0].text.strip()
 
 
-def get_weekly_goal_check(goals: list[dict], week_memories: str, week_type: str) -> str:
+def get_week_analysis(goals: list[dict], week_memories: str) -> str:
+    goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in goals)
+
+    prompt = f"""Je bent de interne analyselaag van Stefs persoonlijke agent.
+Je schrijft nooit direct aan Stef — je analyseert alleen.
+
+Stefs doelen voor 2026:
+{goals_str}
+
+Wat er deze week over hem is onthouden:
+{week_memories or "Geen specifieke info uit deze week."}
+
+Analyseer in max 100 woorden:
+1. Wat valt op in het patroon van deze week?
+2. Wat heeft Stef nu nodig: erkenning, scherpere vraag, tijdsdruk of rust?
+3. Welke 1-2 doelen verdienen aandacht op basis van patroon?
+4. Is er iets wat hij zelf niet benoemt maar wat wel opvalt?
+
+Schrijf alleen observaties en een aanbeveling. Geen aanspreking, geen berichtje."""
+
+    response = _client.messages.create(
+        model=MODEL,
+        max_tokens=200,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
+def get_weekly_goal_check(goals: list[dict], week_memories: str, week_type: str, analysis: str = "") -> str:
     goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in goals)
 
     week_type_instructions = {
@@ -321,6 +349,8 @@ def get_weekly_goal_check(goals: list[dict], week_memories: str, week_type: str)
         "- Tijdsdruk werkt voor hem"
     )
 
+    analysis_block = f"\nInterne analyse (gebruik dit om het berichtje te scherpen — niet letterlijk citeren):\n{analysis}\n" if analysis else ""
+
     prompt = f"""Je bent de persoonlijke assistent van Stef (19, CMD-student Amsterdam).
 
 {week_type_instructions.get(week_type, week_type_instructions["A"])}
@@ -332,7 +362,7 @@ Zijn 9 doelen voor 2026:
 
 Wat ik deze week over hem heb onthouden:
 {week_memories or "Geen specifieke info uit deze week."}
-
+{analysis_block}
 Schrijf nu een weekcheck-berichtje. Regels:
 - Max 100 woorden
 - Kies 1-2 doelen om op te focussen — noem NIET alle doelen
