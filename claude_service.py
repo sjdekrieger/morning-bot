@@ -122,6 +122,12 @@ def classify_intent(message: str) -> dict:
 
 Bericht: "{message}"
 
+BELANGRIJK — prioriteitsregels:
+1. Als het bericht expliciet woorden bevat zoals "task", "taak", "to-do", "todo", "reminder" → altijd task_add, ook als er een tijdstip in staat.
+2. Als het bericht expliciet woorden bevat zoals "agenda", "event", "afspraak", "meeting", "planning" → calendar_add.
+3. Als er een tijdstip staat maar geen expliciete voorkeur → calendar_add.
+4. Geen tijdstip, geen expliciete voorkeur → task_add.
+
 Geef een JSON-antwoord (ALLEEN JSON, geen uitleg):
 - Als het een gewoon gesprek/vraag is:
   {{"type": "chat"}}
@@ -131,7 +137,7 @@ Geef een JSON-antwoord (ALLEEN JSON, geen uitleg):
   {{"type": "calendar_view", "period": "today" of "week"}}
 - Als hij een event wil verwijderen:
   {{"type": "calendar_delete", "title": "naam van het event"}}
-- Als hij een taak of to-do noemt zonder dat het een agenda-event is:
+- Als hij een taak of to-do noemt:
   {{"type": "task_add", "title": "naam van de taak"}}
 - Als hij zijn Google Tasks wil zien:
   {{"type": "tasks_view"}}
@@ -142,9 +148,11 @@ Geef een JSON-antwoord (ALLEEN JSON, geen uitleg):
 
 Voorbeelden:
 - "voeg gym toe morgen om 18:00" → calendar_add
+- "voeg de task gym toe morgen om 18:00" → task_add (expliciet "task")
 - "wat staat er vandaag in mijn agenda?" → calendar_view
 - "verwijder de meeting van donderdag" → calendar_delete
 - "ik moet nog mijn portfolio afmaken" → task_add
+- "voeg de task wijn halen om 12 uur toe" → task_add (expliciet "task")
 - "wat zijn mijn taken?" of "toon mijn to-do lijst" → tasks_view
 - "ik heb mijn portfolio afgemaakt" of "vink portfolio af" → task_complete
 - "verwijder taak gym" → task_delete
