@@ -122,11 +122,14 @@ Geef een JSON-antwoord (ALLEEN JSON, geen uitleg):
   {{"type": "calendar_view", "period": "today" of "week"}}
 - Als hij een event wil verwijderen:
   {{"type": "calendar_delete", "title": "naam van het event"}}
+- Als hij een taak of to-do noemt zonder dat het een agenda-event is:
+  {{"type": "task_add", "title": "naam van de taak"}}
 
 Voorbeelden:
 - "voeg gym toe morgen om 18:00" → calendar_add
 - "wat staat er vandaag in mijn agenda?" → calendar_view
 - "verwijder de meeting van donderdag" → calendar_delete
+- "ik moet nog mijn portfolio afmaken" → task_add
 - "hoe pak ik mijn portfolio aan?" → chat"""
 
     response = _client.messages.create(
@@ -173,6 +176,39 @@ Geef ALLEEN een JSON-antwoord:
         return data["start"], data["end"]
     except Exception:
         return None
+
+
+def parse_deadline(deadline_text: str) -> str | None:
+    now = datetime.now()
+    prompt = f"""Vandaag is {now.strftime('%A %d %B %Y')}, het is nu {now.strftime('%H:%M')}.
+
+Zet deze deadline-beschrijving om naar een ISO 8601 datetime (tijdzone +02:00):
+"{deadline_text}"
+
+Geef ALLEEN een JSON-antwoord:
+{{"deadline": "2025-01-15T17:00:00+02:00"}}"""
+
+    response = _client.messages.create(
+        model=MODEL,
+        max_tokens=64,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = response.content[0].text.strip()
+    try:
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return json.loads(text.strip())["deadline"]
+    except Exception:
+        return None
+
+
+def chat_with_location(user_message: str, lat: float, lon: float) -> str:
+    import storage
+    location_context = f"\n\n[Stef's huidige locatie: {lat:.4f}, {lon:.4f} — gebruik dit als het relevant is voor reistijd of afspraken]"
+    full_message = user_message + location_context
+    return chat(full_message)
 
 
 def get_day_comment(num_events: int, event_titles: list[str], goals: list[dict]) -> str:

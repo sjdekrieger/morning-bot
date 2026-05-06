@@ -63,6 +63,44 @@ def increment_goal_index(total: int) -> int:
     return new_index
 
 
+def get_pending_task() -> str | None:
+    return _read_state().get("pending_task")
+
+
+def set_pending_task(task: str) -> None:
+    state = _read_state()
+    state["pending_task"] = task
+    _write_state(state)
+
+
+def clear_pending_task() -> None:
+    state = _read_state()
+    state.pop("pending_task", None)
+    _write_state(state)
+
+
+def set_location(lat: float, lon: float) -> None:
+    state = _read_state()
+    state["location"] = {
+        "lat": lat,
+        "lon": lon,
+        "timestamp": datetime.now().isoformat(),
+    }
+    _write_state(state)
+
+
+def get_location() -> dict | None:
+    return _read_state().get("location")
+
+
+def is_location_fresh(max_minutes: int = 30) -> bool:
+    loc = get_location()
+    if not loc:
+        return False
+    ts = datetime.fromisoformat(loc["timestamp"])
+    return (datetime.now() - ts).total_seconds() < max_minutes * 60
+
+
 def add_memory(note: str) -> None:
     memories = get_memories()
     memories.append({

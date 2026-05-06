@@ -1,6 +1,8 @@
+import os
 import re
+from datetime import datetime
 
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 
 import storage
@@ -8,17 +10,21 @@ import claude_service
 import calendar_service
 from goals import GOALS_2026
 
+CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID", "0"))
+
+LOCATION_KEYWORDS = ["meeting", "afspraak", "op tijd", "hoe laat vertrek", "onderweg", "kan ik halen", "reistijd", "halen"]
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Hey Stef! Ik ben je persoonlijke assistent.\n\n"
         "Ik stuur je elke ochtend om 7:00 je dagplanning en elke avond om 23:00 vraag ik "
         "je om je 4 taken voor morgen.\n\n"
-        "Je kunt me ook gewoon berichten sturen — ik help met je agenda, plannen, vragen, noem maar op.\n\n"
         "Commando's:\n"
         "/agenda — Agenda van vandaag\n"
         "/taken — Jouw taken voor morgen\n"
         "/doelen — Jouw doelen voor 2026\n"
+        "/locatie — Deel je locatie\n"
         "/help — Dit bericht"
     )
 
@@ -29,8 +35,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "• Agenda bekijken: 'wat staat er vandaag?' of /agenda\n"
         "• Event toevoegen: 'voeg gym toe morgen om 18:00'\n"
         "• Event verwijderen: 'verwijder de meeting van donderdag'\n"
+        "• Taak toevoegen: 'ik moet nog mijn portfolio afmaken'\n"
         "• Taken bekijken: /taken\n"
         "• Doelen bekijken: /doelen\n"
+        "• Locatie delen: /locatie\n"
         "• Gewoon praten: stel een vraag of vertel wat je bezighoudt\n\n"
         "Elke ochtend om 7:00 stuur ik je een dagstart.\n"
         "Elke avond om 23:00 vraag ik je om je 4 taken voor morgen."
@@ -64,12 +72,42 @@ async def goals_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
+async def locatie_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    keyboard = [[KeyboardButton("📍 Deel locatie", request_location=True)]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+    await update.message.reply_text("Druk op de knop om je locatie te delen.", reply_markup=reply_markup)
+
+
+async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    loc = update.message.location
+    storage.set_location(loc.latitude, loc.longitude)
+    await update.message.reply_text(
+        "Locatie ontvangen. Ik gebruik hem de komende 30 minuten als het relevant is.",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.message.text.strip()
 
+    # Taak deadline flow
+    if storage.get_pending_task():
+        await _handle_deadline_input(update, context, message)
+        return
+
+    # Avond taken flow
     if storage.is_awaiting_tasks():
         await _handle_task_input(update, message)
         return
+
+    # Proactief locatie vragen als relevant
+    if any(kw in message.lower() for kw in LOCATION_KEYWORDS) and not storage.is_location_fresh():
+        keyboard = [[KeyboardButton("📍 Deel locatie", request_location=True)]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        await update.message.reply_text(
+            "Deel je locatie zodat ik reistijd kan meenemen.",
+            reply_markup=reply_markup
+        )
 
     intent = claude_service.classify_intent(message)
     intent_type = intent.get("type", "chat")
@@ -81,9 +119,63 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_calendar_view(update, period)
     elif intent_type == "calendar_delete":
         await _handle_calendar_delete(update, intent)
+    elif intent_type == "task_add":
+        task_title = intent.get("title", message)
+        storage.set_pending_task(task_title)
+        await update.message.reply_text(f"Wanneer is de deadline voor *{task_title}*?", parse_mode="Markdown")
     else:
-        reply = claude_service.chat(message)
+        loc = storage.get_location()
+        if storage.is_location_fresh() and loc:
+            reply = claude_service.chat_with_location(message, loc["lat"], loc["lon"])
+        else:
+            reply = claude_service.chat(message)
         await _send_long_message(update, reply)
+
+
+async def _handle_deadline_input(update: Update, context: ContextTypes.DEFAULT_TYPE, message: str) -> None:
+    task = storage.get_pending_task()
+    storage.clear_pending_task()
+
+    deadline_iso = claude_service.parse_deadline(message)
+    if not deadline_iso:
+        await update.message.reply_text("Ik kon die datum niet begrijpen. Taak opgeslagen zonder deadline.")
+        return
+
+    deadline_dt = datetime.fromisoformat(deadline_iso)
+    now = datetime.now(deadline_dt.tzinfo)
+    remaining = (deadline_dt - now).total_seconds()
+
+    if remaining <= 0:
+        await update.message.reply_text("Die deadline is al voorbij. Taak niet opgeslagen.")
+        return
+
+    # Reminder op 80% van de resterende tijd
+    reminder_delay = remaining * 0.8
+    deadline_str = deadline_dt.strftime("%a %d %b om %H:%M")
+
+    context.job_queue.run_once(
+        _send_reminder,
+        when=reminder_delay,
+        data={"task": task, "deadline_str": deadline_str},
+        chat_id=CHAT_ID,
+    )
+
+    await update.message.reply_text(
+        f"✓ Reminder ingesteld voor *{task}*.\n"
+        f"Deadline: {deadline_str}\n"
+        f"Ik stuur je een reminder op 80% van de tijd.",
+        parse_mode="Markdown"
+    )
+
+
+async def _send_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
+    task = context.job.data["task"]
+    deadline_str = context.job.data["deadline_str"]
+    await context.bot.send_message(
+        chat_id=context.job.chat_id,
+        text=f"⏰ Reminder: *{task}* — deadline is {deadline_str}.",
+        parse_mode="Markdown"
+    )
 
 
 async def _handle_task_input(update: Update, message: str) -> None:
@@ -105,7 +197,6 @@ def _parse_tasks(message: str) -> list[str]:
     lines = [line.strip() for line in message.strip().splitlines() if line.strip()]
     tasks = []
     for line in lines:
-        # Strip common list prefixes: "1.", "1)", "-", "•", "*"
         cleaned = re.sub(r"^(\d+[.)]\s*|[-•*]\s*)", "", line).strip()
         if cleaned:
             tasks.append(cleaned)
@@ -134,7 +225,7 @@ async def _handle_calendar_add(update: Update, intent: dict) -> None:
     if success:
         await update.message.reply_text(f"✓ _{title}_ toegevoegd aan je agenda.", parse_mode="Markdown")
     else:
-        await update.message.reply_text("Het lukte niet om het event toe te voegen. Controleer de Google Calendar instellingen.")
+        await update.message.reply_text("Het lukte niet om het event toe te voegen.")
 
 
 async def _handle_calendar_view(update: Update, period: str) -> None:
