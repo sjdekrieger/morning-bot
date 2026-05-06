@@ -10,7 +10,7 @@ load_dotenv()
 
 import storage
 from telegram.ext import filters as tg_filters
-from handlers import start, help_command, agenda_command, tasks_command, goals_command, locatie_command, handle_location, handle_message
+from handlers import start, help_command, agenda_command, tasks_command, goals_command, locatie_command, handle_location, handle_photo, handle_message
 from scheduler import send_morning_message, send_evening_message
 
 logging.basicConfig(
@@ -61,6 +61,7 @@ def main() -> None:
     app.add_handler(CommandHandler("doelen", goals_command))
     app.add_handler(CommandHandler("locatie", locatie_command))
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     app.job_queue.run_custom(

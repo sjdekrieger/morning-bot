@@ -204,6 +204,33 @@ Geef ALLEEN een JSON-antwoord:
         return None
 
 
+def chat_image(image_bytes: bytes, caption: str = "") -> str:
+    import base64
+    prompt = caption.strip() if caption.strip() else "Wat zie je op deze foto?"
+    image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+
+    if not _history:
+        context = _build_context_prompt()
+        _history.append({"role": "user", "content": context})
+        _history.append({"role": "assistant", "content": "Begrepen, ik heb je agenda, taken, doelen en eerdere gesprekken in beeld."})
+
+    message_content = [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
+        {"type": "text", "text": prompt},
+    ]
+    _history.append({"role": "user", "content": message_content})
+
+    response = _client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        system=SYSTEM_PROMPT,
+        messages=list(_history),
+    )
+    reply = response.content[0].text
+    _history.append({"role": "assistant", "content": reply})
+    return reply
+
+
 def chat_with_location(user_message: str, lat: float, lon: float) -> str:
     import storage
     location_context = f"\n\n[Stef's huidige locatie: {lat:.4f}, {lon:.4f} — gebruik dit als het relevant is voor reistijd of afspraken]"

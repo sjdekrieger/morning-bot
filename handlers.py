@@ -78,6 +78,15 @@ async def locatie_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text("Druk op de knop om je locatie te delen.", reply_markup=reply_markup)
 
 
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    photo = update.message.photo[-1]  # hoogste resolutie
+    caption = update.message.caption or ""
+    file = await context.bot.get_file(photo.file_id)
+    image_bytes = await file.download_as_bytearray()
+    reply = claude_service.chat_image(bytes(image_bytes), caption)
+    await _send_long_message(update, reply)
+
+
 async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     loc = update.message.location
     storage.set_location(loc.latitude, loc.longitude)
