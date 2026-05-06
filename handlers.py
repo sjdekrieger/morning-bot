@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
@@ -159,6 +159,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _send_long_message(update, reply)
 
 
+def _smart_reminder_delay(remaining_seconds: float, deadline_dt: datetime) -> float:
+    """Berekent slimme reminder-timing op basis van hoe ver de deadline weg is."""
+    now = datetime.now(deadline_dt.tzinfo)
+
+    if remaining_seconds > 48 * 3600:
+        # Meer dan 2 dagen: herinner de dag ervoor om 18:00
+        day_before_18 = (deadline_dt - timedelta(days=1)).replace(hour=18, minute=0, second=0, microsecond=0)
+        if day_before_18 > now:
+            return (day_before_18 - now).total_seconds()
+        # Als 18:00 gisteren al voorbij is, herinner 's ochtends om 9:00 op de dag zelf
+        morning = deadline_dt.replace(hour=9, minute=0, second=0, microsecond=0)
+        if morning > now:
+            return (morning - now).total_seconds()
+
+    if remaining_seconds > 6 * 3600:
+        # 6-48 uur: herinner 3 uur van tevoren, maar minimaal om 9:00 's ochtends
+        remind_at = deadline_dt - timedelta(hours=3)
+        morning = remind_at.replace(hour=9, minute=0, second=0, microsecond=0)
+        remind_at = max(remind_at, morning)
+        if remind_at > now:
+            return (remind_at - now).total_seconds()
+
+    # Minder dan 6 uur: herinner 1 uur van tevoren (minimaal 20 minuten)
+    return max(remaining_seconds - 3600, 1200)
+
+
 async def _handle_deadline_input(update: Update, context: ContextTypes.DEFAULT_TYPE, message: str) -> None:
     task = storage.get_pending_task()
     storage.clear_pending_task()
@@ -176,8 +202,7 @@ async def _handle_deadline_input(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("Die deadline is al voorbij. Taak niet opgeslagen.")
         return
 
-    # Reminder op 80% van de resterende tijd
-    reminder_delay = remaining * 0.8
+    reminder_delay = _smart_reminder_delay(remaining, deadline_dt)
     deadline_str = deadline_dt.strftime("%a %d %b om %H:%M")
 
     context.job_queue.run_once(
@@ -189,10 +214,12 @@ async def _handle_deadline_input(update: Update, context: ContextTypes.DEFAULT_T
 
     tasks_service.add_task(task, deadline_iso)
 
+    reminder_at = datetime.now(deadline_dt.tzinfo) + timedelta(seconds=reminder_delay)
+    reminder_str = reminder_at.strftime("%a %d %b om %H:%M")
     await update.message.reply_text(
         f"✓ *{task}* toegevoegd aan Google Tasks.\n"
         f"Deadline: {deadline_str}\n"
-        f"Reminder volgt op 80% van de tijd.",
+        f"Reminder: {reminder_str}",
         parse_mode="Markdown"
     )
 

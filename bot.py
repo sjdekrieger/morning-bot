@@ -11,7 +11,7 @@ load_dotenv()
 import storage
 from telegram.ext import filters as tg_filters
 from handlers import start, help_command, agenda_command, tasks_command, goals_command, locatie_command, handle_location, handle_photo, handle_message
-from scheduler import send_morning_message, send_evening_message
+from scheduler import send_morning_message, send_evening_message, send_weekly_goal_check
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -72,8 +72,12 @@ def main() -> None:
         send_evening_message,
         job_kwargs={"trigger": CronTrigger(hour=23, minute=0, timezone=TIMEZONE)},
     )
+    app.job_queue.run_custom(
+        send_weekly_goal_check,
+        job_kwargs={"trigger": CronTrigger(day_of_week="sun", hour=20, minute=0, timezone=TIMEZONE)},
+    )
 
-    logger.info("Bot starting — morning at 07:00, evening at 23:00 (%s)", TIMEZONE)
+    logger.info("Bot starting — morning 07:00, evening 23:00, weekly check sun 20:00 (%s)", TIMEZONE)
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 

@@ -264,6 +264,89 @@ def chat_with_location(user_message: str, lat: float, lon: float) -> str:
     return chat(full_message)
 
 
+def get_morning_greeting(weekday: str, num_events: int, event_titles: list[str], tasks: list[str], recent_memories: str) -> str:
+    events_str = ", ".join(event_titles) if event_titles else "geen events"
+    tasks_str = ", ".join(tasks[:2]) if tasks else "geen taken ingepland"
+    drukte = "druk" if num_events >= 4 else ("rustig" if num_events == 0 else "normaal")
+
+    prompt = f"""Het is {weekday}. Stef's dag is {drukte} ({num_events} events: {events_str}).
+Zijn eerste taken: {tasks_str}.
+
+Recente herinneringen over Stef:
+{recent_memories or "Geen recente info."}
+
+Schrijf een persoonlijke openingszin (max 20 woorden) voor zijn ochtendberichtje.
+- Stem af op de dag (maandag = week starten, vrijdag = weekend in zicht, weekend = relaxed)
+- Stem af op drukte (veel events = kort en direct, rustige dag = iets uitnodigender)
+- Koppel eventueel aan iets uit zijn recente herinneringen als dat relevant is
+- Geen neppe enthousiasme, geen "Geweldig!" of "Super!"
+- Geen groet als "Goedemorgen" — die staat er al boven
+- Gewoon één directe, persoonlijke zin
+
+Geef ALLEEN de zin, niks anders."""
+
+    response = _client.messages.create(
+        model=MODEL,
+        max_tokens=60,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
+def get_weekly_goal_check(goals: list[dict], memories_text: str) -> str:
+    goals_str = "\n".join(f"{g['id']}. {g['title']}" for g in goals)
+
+    prompt = f"""Het is zondag. Stef sluit zijn week af.
+
+Zijn doelen voor 2026:
+{goals_str}
+
+Wat ik de afgelopen week over hem heb onthouden:
+{memories_text or "Geen specifieke info uit deze week."}
+
+Schrijf een persoonlijk weekoverzicht voor Stef. Structuur:
+1. Start met wat er deze week goed ging — wees specifiek als je het weet uit de herinneringen, anders algemeen maar eerlijk.
+2. Noem 2-3 doelen en geef per doel een eerlijke korte observatie (1 zin).
+3. Stel één concrete vraag voor de komende week: iets waar hij écht mee verder moet.
+4. Eindig met één motiverende zin die past bij zijn situatie — geen cliché.
+
+Stijl: direct, als een goede vriend die hem goed kent. Geen neppe enthousiasme.
+Max 200 woorden. In het Nederlands."""
+
+    response = _client.messages.create(
+        model=MODEL,
+        max_tokens=400,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
+def get_week_overview_comment(week_events: list[dict], goals: list[dict]) -> str:
+    titles = [e.get("summary", "") for e in week_events[:10]]
+    events_str = ", ".join(titles) if titles else "geen events"
+    goals_str = "\n".join(f"- {g['title']}" for g in goals)
+
+    prompt = f"""Het is maandag. Stef's week heeft {len(week_events)} events: {events_str}.
+
+Zijn doelen:
+{goals_str}
+
+Schrijf één zin (max 20 woorden) die:
+- de toon zet voor zijn hele week
+- iets noemt wat deze week haalbaar is richting zijn doelen
+- direct en realistisch is
+
+Geef ALLEEN de zin."""
+
+    response = _client.messages.create(
+        model=MODEL,
+        max_tokens=60,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
 def get_day_comment(num_events: int, event_titles: list[str], goals: list[dict]) -> str:
     goals_str = "\n".join(f"- {g['title']}" for g in goals)
     events_str = ", ".join(event_titles) if event_titles else "geen events"
